@@ -1,0 +1,12 @@
+# Build output
+*.exe
+/channelsurfer
+/channel-surf
+cs-linux
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

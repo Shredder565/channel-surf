@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Channel Surfer</title>
+<style>
+@font-face{font-family:'VT323';src:url(fonts/vt323.woff2) format('woff2');font-weight:400}
+@font-face{font-family:'Barlow Condensed';src:url(fonts/barlow-500.woff2) format('woff2');font-weight:500}
+@font-face{font-family:'Barlow Condensed';src:url(fonts/barlow-600.woff2) format('woff2');font-weight:600}
+@font-face{font-family:'Barlow Condensed';src:url(fonts/barlow-700.woff2) format('woff2');font-weight:700}
+:root{--navy:#071559;--deep:#050b2e;--band:#0b1d80;--cell:#1a3399;--live:#2747c4;--gold:#ffd23f;--soft:#9fb2ff;--pale:#c7d2ff;--red:#e0332e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed','Arial Narrow',sans-serif;color:#fff}
+#stage{width:1280px;height:720px;background:var(--navy);position:relative;overflow:hidden;transform-origin:center center;flex-shrink:0;display:flex;flex-direction:column}
+.mono{font-family:'VT323',ui-monospace,monospace}
+button{font-family:inherit;cursor:pointer;border:none}
+button:focus-visible,a:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.top{height:300px;flex-shrink:0;display:flex;gap:20px;padding:20px 24px 16px;background:var(--deep);border-bottom:4px solid var(--gold)}
+.preview{width:440px;height:248px;flex-shrink:0;border:3px solid var(--gold);background-color:#0d1d74;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0,rgba(255,255,255,.035) 1px,transparent 1px,transparent 3px);animation:scan .4s linear infinite;position:relative;display:flex;flex-direction:column;padding:10px 14px 12px}
+@keyframes scan{from{background-position:0 0}to{background-position:0 6px}}
+@keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.25}}
+.tag-live{background:var(--red);color:#fff;font-weight:700;font-size:15px;letter-spacing:1px;padding:2px 8px;animation:blink 1.2s steps(1) infinite}
+.tag-final{background:var(--pale);color:var(--navy);font-weight:700;font-size:15px;letter-spacing:1px;padding:2px 8px}
+.tag-next{border:2px solid var(--soft);color:var(--pale);font-weight:700;font-size:14px;letter-spacing:1px;padding:0 8px}
+.info{flex:1;display:flex;flex-direction:column;min-width:0}
+.hdr{display:flex;justify-content:space-between;align-items:baseline;gap:16px;white-space:nowrap}
+.brand{font-size:34px;color:var(--gold);letter-spacing:3px}
+.clock{font-size:34px}
+.kicker{font-size:16px;color:var(--soft);letter-spacing:2px;text-transform:uppercase;margin-top:10px}
+.title{font-size:42px;font-weight:700;line-height:1.05;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.line{font-size:22px;color:#dfe5ff;margin-top:6px}
+.sub{font-size:17px;color:var(--soft);margin-top:4px}
+.gold{color:var(--gold);font-weight:700}
+.chips{display:flex;gap:10px;margin-top:8px}
+.chip{border:2px solid var(--soft);color:var(--pale);padding:0 8px;font-size:16px;font-weight:600}
+.actions{display:flex;gap:12px;margin-top:auto;flex-wrap:wrap}
+.btn-main{background:var(--gold);color:var(--navy);font-size:22px;font-weight:700;padding:0 26px;min-height:48px;display:inline-flex;align-items:center;letter-spacing:1px;text-decoration:none}
+.btn-ghost{background:transparent;color:var(--gold);border:2px solid var(--gold);font-size:20px;font-weight:600;padding:0 18px;min-height:48px}
+.catbar{height:48px;flex-shrink:0;display:flex;align-items:center;gap:6px;padding:0 24px;background:var(--band)}
+.cat{font-size:18px;font-weight:700;padding:6px 16px;min-height:36px;letter-spacing:1px;text-transform:uppercase;background:transparent;color:var(--pale)}
+.cat.on{background:var(--gold);color:var(--navy)}
+.nav{margin-left:auto;display:flex;gap:6px;align-items:center}
+.navb{background:#1f3fa8;color:var(--gold);width:44px;height:36px;font-size:18px}
+.pg{font-size:22px;color:var(--soft);margin:0 6px 0 10px}
+.times{display:flex;flex-shrink:0;height:36px;background:var(--deep);padding:0 24px;gap:4px}
+.times .day{width:196px;flex-shrink:0;font-size:24px;color:var(--gold);display:flex;align-items:center}
+.times .cols{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.times .cols div{font-size:24px;color:var(--gold);display:flex;align-items:center;padding-left:10px}
+.grid{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:4px;padding:4px 24px 0;position:relative}
+.now{position:absolute;top:0;bottom:0;width:3px;background:var(--red);z-index:2;pointer-events:none}
+.row{display:flex;gap:4px;height:45px;flex-shrink:0}
+.chan{width:196px;flex-shrink:0;background:var(--band);display:flex;align-items:center;gap:10px;padding:0 12px}
+.chan.stack{flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+.chan .num{font-size:30px;color:var(--gold);width:44px}
+.chan .nm{font-size:18px;font-weight:600;line-height:1.05}
+.chan .net{font-size:24px;color:var(--gold);line-height:1}
+.chan .sb{font-size:15px;font-weight:600;color:var(--pale);line-height:1.1}
+.slots4{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.slots48{flex:1;display:grid;grid-template-columns:repeat(48,minmax(0,1fr));background:#0a1866}
+.prog{text-align:left;padding:0 12px;font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:45px;background:var(--cell);color:#fff;grid-row:1}
+.slots48 .prog{margin-right:4px;font-size:19px;padding:0 10px}
+.prog.live{background:var(--live)}
+.prog.final{background:#14286f;color:var(--pale)}
+.prog.fav{box-shadow:inset 0 0 0 2px var(--gold)}
+.prog.sel{background:var(--gold);color:var(--navy);box-shadow:none}
+.foot{height:40px;flex-shrink:0;display:flex;align-items:center;gap:20px;white-space:nowrap;padding:0 24px;background:var(--deep);font-size:17px;color:var(--soft);letter-spacing:1px;text-transform:uppercase}
+.foot .k{color:var(--gold)}
+.foot .right{margin-left:auto;display:flex;gap:6px;align-items:center;text-transform:none}
+.tab{font-size:16px;font-weight:700;letter-spacing:1px;padding:4px 12px;background:transparent;color:var(--pale);border:2px solid #1f3fa8}
+.tab.on{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+.overlay{position:absolute;inset:0;background:var(--deep);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:5}
+.empty{height:120px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--pale)}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+/* ===================== DATA ===================== */
+// Sports snapshot: Sun Oct 18, 2026 at 2:07 PM ET
+const FOX = { net: 'FOX', app: 'Fox One', url: 'https://www.foxsports.com/live', alt: 'Regional game: your market decides which FOX game airs. Out-of-market: NFL Sunday Ticket on YouTube TV.' };
+const CBS = { net: 'CBS', app: 'Paramount+', url: 'https://www.paramountplus.com/', alt: 'Regional game: your market decides which CBS game airs. Out-of-market: NFL Sunday Ticket on YouTube TV.' };
+const SROWS = [
+  { net: 'NFL NET', sub: 'NFL+', svc: { net: 'NFL Network', app: 'NFL+', url: 'https://www.nfl.com/plus/' }, games: [
+    { lg: 'NFL', a: 'HOU', h: 'JAC', an: 'Houston Texans', hn: 'Jacksonville Jaguars', t: 570, d: 195, st: 'final', sa: 34, sh: 31, note: 'NFL · International Series · London' } ] },
+  { net: 'PEACOCK', sub: 'NBC · USA', svc: { net: 'NBC / USA Network', app: 'Peacock', url: 'https://www.peacocktv.com/' }, games: [
+    { lg: 'EPL', a: 'ARS', h: 'NFO', an: 'Arsenal', hn: 'Nottingham Forest', t: 690, d: 115, st: 'final', sa: 1, sh: 0, note: 'Premier League' },
+    { lg: 'NFL', a: 'DAL', h: 'GB', an: 'Dallas Cowboys', hn: 'Green Bay Packers', t: 1220, d: 200, wa: 49.1, wh: 50.9, note: 'NFL · Sunday Night Football' } ] },
+  { net: 'FOX', sub: 'Regional A', svc: FOX, games: [
+    { lg: 'NFL', a: 'CHI', h: 'ATL', an: 'Chicago Bears', hn: 'Atlanta Falcons', t: 780, d: 195, st: 'live', sa: 14, sh: 7, clock: 'Q2 5:38', ya: 187, yh: 94, last: 'Q2 · ATL TD — Penix finds Dotson, 13 yds', note: 'NFL · Week 6' },
+    { lg: 'NFL', a: 'ARI', h: 'LA', an: 'Arizona Cardinals', hn: 'Los Angeles Rams', t: 965, d: 195, wa: 13.1, wh: 86.9, note: 'NFL · Week 6 · Late window' } ] },
+  { net: 'FOX', sub: 'Regional B', svc: FOX, games: [
+    { lg: 'NFL', a: 'BAL', h: 'CLE', an: 'Baltimore Ravens', hn: 'Cleveland Browns', t: 780, d: 195, st: 'live', sa: 10, sh: 0, clock: 'Q2 4:24', note: 'NFL · Week 6' } ] },
+  { net: 'FOX', sub: 'Regional C', svc: FOX, games: [
+    { lg: 'NFL', a: 'TEN', h: 'IND', an: 'Tennessee Titans', hn: 'Indianapolis Colts', t: 780, d: 195, st: 'live', sa: 0, sh: 10, clock: 'Q2 2:06', note: 'NFL · Week 6' } ] },
+  { net: 'FOX', sub: 'Regional D', svc: FOX, games: [
+    { lg: 'NFL', a: 'NO', h: 'NYG', an: 'New Orleans Saints', hn: 'New York Giants', t: 780, d: 195, st: 'live', sa: 0, sh: 7, clock: 'Q2 2:35', ya: 80, yh: 130, last: 'Q1 · NYG TD — Winston to Tracy, 17 yds', note: 'NFL · Week 6' } ] },
+  { net: 'CBS', sub: 'Regional A', svc: CBS, games: [
+    { lg: 'NFL', a: 'NYJ', h: 'NE', an: 'New York Jets', hn: 'New England Patriots', t: 780, d: 195, st: 'live', sa: 3, sh: 7, clock: 'Q2 4:21', ya: 151, yh: 78, last: 'Q1 · NE TD — Maye deep to Doubs, 42 yds', note: 'NFL · Week 6' },
+    { lg: 'NFL', a: 'LAC', h: 'KC', an: 'Los Angeles Chargers', hn: 'Kansas City Chiefs', t: 985, d: 195, wa: 23.3, wh: 76.7, note: 'NFL · Week 6 · Late window' } ] },
+  { net: 'CBS', sub: 'Regional B', svc: CBS, games: [
+    { lg: 'NFL', a: 'CAR', h: 'PHI', an: 'Carolina Panthers', hn: 'Philadelphia Eagles', t: 780, d: 195, st: 'live', sa: 3, sh: 0, clock: 'Q2 9:45', ya: 115, yh: 49, last: 'Q1 · CAR FG — Fitzgerald, 47 yds', note: 'NFL · Week 6' },
+    { lg: 'NFL', a: 'BUF', h: 'LV', an: 'Buffalo Bills', hn: 'Las Vegas Raiders', t: 985, d: 195, wa: 66.4, wh: 33.6, note: 'NFL · Week 6 · Late window' } ] },
+  { net: 'CBS', sub: 'Regional C', svc: CBS, games: [
+    { lg: 'NFL', a: 'PIT', h: 'TB', an: 'Pittsburgh Steelers', hn: 'Tampa Bay Buccaneers', t: 780, d: 195, st: 'live', sa: 0, sh: 10, clock: 'Q2 7:03', note: 'NFL · Week 6' } ] },
+  { net: 'HBO MAX', sub: 'TBS · truTV', svc: { net: 'TBS / truTV', app: 'HBO Max', url: 'https://www.hbomax.com/' }, games: [
+    { lg: 'MLB', a: 'TB', h: 'CLE', an: 'Tampa Bay Rays', hn: 'Cleveland Guardians', t: 1028, d: 210, wa: 54.8, wh: 45.2, note: 'MLB · ALCS Game 5 · Series tied 2–2' } ] },
+  { net: 'ESPN+', sub: 'NHL out-of-market', svc: { net: 'Regional sports nets', app: 'ESPN+', url: 'https://www.espn.com/watch/', alt: 'In-market fans watch on the local regional sports network.' }, games: [
+    { lg: 'NHL', a: 'CBJ', h: 'MIN', an: 'Columbus Blue Jackets', hn: 'Minnesota Wild', t: 1080, d: 150, wa: 37.9, wh: 62.1, note: 'NHL · Regular season' },
+    { lg: 'NHL', a: 'CAR', h: 'CGY', an: 'Carolina Hurricanes', hn: 'Calgary Flames', t: 1200, d: 150, wa: 65.9, wh: 34.1, note: 'NHL · Regular season' } ] }
+];
+const SP_CATS = ['All', 'NFL', 'MLB', 'NHL', 'EPL', 'My Teams'];
+const WINS = [540, 720, 900, 1080, 1260];
+const NOW = 847;
+const PAGE = 6;
+const LIVE_KEYS = [];
+SROWS.forEach((r, ri) => r.games.forEach((g, gi) => { if (g.st === 'live') LIVE_KEYS.push(ri + '-' + gi); }));
+
+/* ===================== STATE ===================== */
+function load(k, d) { try { const v = localStorage.getItem('cs.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function save(k, v) { try { localStorage.setItem('cs.' + k, JSON.stringify(v)); } catch (e) {} }
+
+const S = {
+  screen: load('screen', 'tv'),
+  sp: { cat: 'All', page: 0, win: 1, sel: '5-0', auto: true, follows: load('follows', ['NFL:NYG', 'NFL:PHI', 'MLB:CLE']) }
+};
+const ACT = {};
+let actId = 0;
+function act(fn) { const id = 'a' + (actId++); ACT[id] = fn; return id; }
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function clock(m) {
+  m = m % 1440;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return (((h + 11) % 12) + 1) + ':' + (mm < 10 ? '0' : '') + mm + (h < 12 ? ' AM' : ' PM');
+}
+function nowLabel() {
+  const d = new Date();
+  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  return days[d.getDay()] + ' ' + (d.getMonth() + 1) + '/' + d.getDate() + ' · ' + clock(d.getHours() * 60 + d.getMinutes());
+}
+
+/* ===================== CHANNEL GUIDES (Pluto TV + YouTube TV) ===================== */
+const HALF = 30 * 60 * 1000;
+const TVWIN = 4 * HALF;               // 2-hour grid
+
+function plutoUrl(c) { return 'https://pluto.tv/live-tv/' + encodeURIComponent(c.slug || c.id); }
+
+const GUIDES = {
+  tv: {
+    key: 'tv', tab: 'PLUTO TV', brand: 'CHANNEL SURFER · PLUTO TV', api: '/api/guide', favKey: 'plutoFavs',
+    app: 'Pluto TV', win: 'cs-PlutoTV', numbers: true, url: plutoUrl,
+    watchLabel: (c) => '▶ WATCH CH ' + (c.number || '') + ' ON PLUTO TV',
+    loading: 'Loading the Pluto TV channel lineup', count: (n) => n + ' Pluto channels'
+  },
+  yttv: {
+    key: 'yttv', tab: 'YOUTUBE TV', brand: 'CHANNEL SURFER · YOUTUBE TV', api: '/api/yttv', favKey: 'yttvFavs',
+    app: 'YouTube TV', win: 'cs-YouTubeTV', numbers: false, url: () => 'https://tv.youtube.com/live',
+    watchLabel: (c) => '▶ WATCH ' + c.name.toUpperCase() + ' ON YOUTUBE TV',
+    loading: 'Loading YouTube TV listings', count: (n) => n + ' YouTube TV channels',
+    credit: 'Listings: <a href="https://www.tvmaze.com" target="_blank" rel="noopener" style="color:var(--pale)">TVmaze.com</a> · live sports &amp; news may be missing'
+  }
+};
+for (const k in GUIDES) {
+  const g = GUIDES[k];
+  g.data = { channels: [], status: 'loading', err: '', log: '' };
+  g.st = { cat: 'All', page: 0, off: 0, selId: null, selIdx: -1, watching: null, digits: '', favs: load(g.favKey, []) };
+}
+const isGuide = () => !!GUIDES[S.screen];
+const curGuide = () => GUIDES[S.screen];
+
+async function loadGuide(g, force) {
+  const D = g.data;
+  if (!D.channels.length) { D.status = 'loading'; if (S.screen === g.key) render(); }
+  try {
+    const r = await fetch(g.api + (force ? '?refresh=1' : ''));
+    const j = await r.json();
+    if (!r.ok || !j.channels) throw Object.assign(new Error(j.error || ('HTTP ' + r.status)), { log: j.log });
+    D.channels = j.channels.filter((c) => c.name).map((c) => ({
+      ...c,
+      programs: (c.programs || []).map((p) => ({ ...p, s: Date.parse(p.start), e: Date.parse(p.stop) }))
+        .filter((p) => p.s && p.e && p.e > p.s).sort((a, b) => a.s - b.s)
+    }));
+    D.status = 'ok';
+    if (!g.st.selId || !D.channels.find((c) => c.id === g.st.selId)) selectChannel(g, D.channels[0]);
+  } catch (e) {
+    if (!D.channels.length) { D.status = 'error'; D.err = e.message; D.log = e.log || ''; }
+  }
+  if (S.screen === g.key) render();
+}
+
+function winStart(g) { return Math.floor(Date.now() / HALF) * HALF + g.st.off * HALF; }
+function guideCats(g) {
+  const seen = [];
+  g.data.channels.forEach((c) => { if (c.category && seen.indexOf(c.category) < 0) seen.push(c.category); });
+  return ['All', 'Favorites'].concat(seen);
+}
+function guideList(g) {
+  const t = g.st;
+  return g.data.channels.filter((c) => t.cat === 'All' || (t.cat === 'Favorites' ? t.favs.indexOf(c.id) >= 0 : c.category === t.cat));
+}
+function progAt(c, ms) { return c.programs.findIndex((p) => p.s <= ms && p.e > ms); }
+function selectChannel(g, c, idx) {
+  if (!c) return;
+  g.st.selId = c.id;
+  g.st.selIdx = idx != null ? idx : progAt(c, Math.max(Date.now(), winStart(g)));
+}
+function selChannel(g) { return g.data.channels.find((c) => c.id === g.st.selId) || g.data.channels[0]; }
+function hm(ms) { const d = new Date(ms); return clock(d.getHours() * 60 + d.getMinutes()); }
+
+function watchChannel(g, c) {
+  if (!c) return;
+  g.st.watching = c.id;
+  openStreamer(g.win.replace('cs-', ''), g.url(c));
+  setTimeout(() => { g.st.watching = null; if (S.screen === g.key) render(); }, 2500);
+}
+function toggleFav(g, c) {
+  const t = g.st;
+  t.favs = t.favs.indexOf(c.id) >= 0 ? t.favs.filter((x) => x !== c.id) : t.favs.concat([c.id]);
+  save(g.favKey, t.favs);
+}
+function jumpTo(g, n) {
+  const chs = g.data.channels;
+  if (!chs.length) return;
+  const c = chs.find((x) => x.number === n) || chs.find((x) => x.number > n) || chs[chs.length - 1];
+  g.st.cat = 'All';
+  g.st.page = chs.indexOf(c);
+  selectChannel(g, c);
+}
+function rowLabel(top, shown, total) { return total ? (top + 1) + '–' + (top + shown) + ' / ' + total : '0 / 0'; }
+
+function renderGuide(g) {
+  const t = g.st, D = g.data;
+  const topRight = `<div class="hdr"><div class="brand mono" style="font-size:30px">${g.brand}</div><div class="clock mono" style="font-size:30px" data-clock>${nowLabel()}</div></div>`;
+  const dial = t.digits ? `<div class="mono" style="position:absolute;top:18px;right:24px;z-index:6;background:var(--deep);border:3px solid var(--gold);color:var(--gold);font-size:56px;padding:0 18px">CH ${t.digits}_</div>` : '';
+
+  if (D.status !== 'ok') {
+    const body = D.status === 'loading'
+      ? `<div class="empty" style="height:auto;flex:1;flex-direction:column;gap:10px"><div class="mono" style="font-size:40px;color:var(--gold)">TUNING IN…</div><div>${g.loading}</div></div>`
+      : `<div class="empty" style="height:auto;flex:1;flex-direction:column;gap:12px;padding:0 120px;text-align:center">
+           <div class="mono" style="font-size:40px;color:var(--gold)">NO SIGNAL</div>
+           <div>Couldn't load the ${g.app} listings. Check your internet connection and try again.</div>
+           <div style="font-size:16px;color:var(--soft);max-height:80px;overflow:hidden">${esc(D.err)}${D.log ? '<br>Details logged to ' + esc(D.log) : ''}</div>
+           <button class="btn-main" data-a="${act(() => loadGuide(g, true))}">↻ TRY AGAIN</button></div>`;
+    return `<div class="top" style="height:110px"><div class="info">${topRight}</div></div>${body}
+      ${footer(['<span class="k">TAB</span> Next screen'])}`;
+  }
+
+  const cats = guideCats(g);
+  if (cats.indexOf(t.cat) < 0) t.cat = 'All';
+  const list = guideList(g);
+  t.page = Math.min(Math.max(0, t.page), Math.max(0, list.length - PAGE));
+  const shown = list.slice(t.page, t.page + PAGE);
+  const ws = winStart(g), we = ws + TVWIN, now = Date.now();
+
+  const rows = shown.map((c) => {
+    let cells = '', filled = 1;
+    const gap = (to) => {
+      if (to - filled >= 3) cells += `<button class="prog" style="grid-column:${filled} / ${to};background:#14286f;color:var(--soft);font-weight:500" data-a="${act(() => selectChannel(g, c, -1))}">not listed</button>`;
+    };
+    c.programs.forEach((p, i) => {
+      if (p.e <= ws || p.s >= we) return;
+      const a = Math.round((Math.max(p.s, ws) - ws) / 300000) + 1;
+      const b = Math.round((Math.min(p.e, we) - ws) / 300000) + 1;
+      if (b <= a) return;
+      gap(a); filled = b;
+      const on = c.id === t.selId && i === t.selIdx;
+      const live = p.s <= now && p.e > now;
+      cells += `<button class="prog ${live ? 'live' : ''} ${on ? 'sel' : ''}" style="grid-column:${a} / ${b}" data-a="${act(() => selectChannel(g, c, i))}">${p.s < ws ? '◀ ' : ''}${esc(p.title || 'Untitled')}</button>`;
+    });
+    if (cells) gap(25);
+    if (!cells) {
+      const on = c.id === t.selId;
+      cells = `<button class="prog ${on ? 'sel' : ''}" style="grid-column:1 / 25;${on ? '' : 'background:#14286f;color:var(--pale)'}" data-a="${act(() => selectChannel(g, c, -1))}">${esc(c.name)} · ${g.numbers ? 'schedule not listed' : 'live programming — not in listings'}</button>`;
+    }
+    const label = g.numbers
+      ? `${c.logo ? `<img src="${esc(c.logo)}" alt="" style="width:40px;height:30px;object-fit:contain;flex-shrink:0" onerror="this.remove()">` : ''}<span class="num mono" style="width:auto;min-width:40px">${c.number || ''}</span><span class="nm" style="overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(c.name)}</span>`
+      : `<span class="net mono" style="font-size:24px;color:var(--gold);line-height:1.05;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(c.name.toUpperCase())}</span>`;
+    return `<div class="row"><div class="chan">${label}</div>
+      <div class="slots48" style="grid-template-columns:repeat(24,minmax(0,1fr))">${cells}</div></div>`;
+  }).join('');
+
+  const sc = selChannel(g);
+  const sp = sc && sc.programs[t.selIdx];
+  const isFav = sc && t.favs.indexOf(sc.id) >= 0;
+  const cur = sc && sc.programs[progAt(sc, now)];
+  const pct = cur ? Math.round(100 * (now - cur.s) / (cur.e - cur.s)) : 0;
+  const isNow = sp && sp.s <= now && sp.e > now;
+  const chLabel = g.numbers ? 'CH ' + (sc.number || '') + ' · ' + sc.name : sc.name;
+  const kicker = chLabel + (sp ? ' · ' + hm(sp.s) + '–' + hm(sp.e) + (isNow ? ' · ON NOW' : '') : '');
+  const title = sp ? sp.title : sc.name;
+  const epi = sp && sp.episode && sp.episode !== sp.title ? sp.episode : '';
+  const desc = (sp && sp.desc) || sc.summary || (sp ? '' : 'Live programming. ' + g.app + ' shows the full schedule for this channel.');
+  const art = (sp && sp.image) || (cur && cur.image) || '';
+  const signed = signedIn(g.app);
+
+  return `
+  <div class="top">
+    <div class="preview" style="align-items:center;justify-content:center;gap:10px;${art ? `background-image:linear-gradient(rgba(5,11,46,.25),rgba(5,11,46,.9)),url('${esc(art)}');background-size:cover;background-position:center` : ''}">
+      <span class="tag-live" style="position:absolute;top:10px;left:10px">● LIVE</span>
+      <span class="mono" style="position:absolute;top:8px;right:12px;font-size:24px;color:var(--soft)">${g.numbers ? 'CH ' + (sc.number || '') : esc(g.app.toUpperCase())}</span>
+      ${sc.logo ? `<img src="${esc(sc.logo)}" alt="${esc(sc.name)} logo" style="max-width:240px;max-height:90px;object-fit:contain" onerror="this.remove()">` : `<div class="mono" style="font-size:40px;color:var(--gold);text-shadow:0 2px 8px #000">${esc(sc.name)}</div>`}
+      <div style="font-size:18px;color:#fff;max-width:380px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px #000">NOW: ${esc(cur ? cur.title : 'Live programming')}</div>
+      ${cur ? `<div style="width:300px"><div style="height:6px;background:#2a3f9e"><div style="height:6px;width:${pct}%;background:var(--gold)"></div></div>
+        <div class="mono" style="display:flex;justify-content:space-between;font-size:18px;color:var(--pale);margin-top:2px"><span>${hm(cur.s)}</span><span>${hm(cur.e)}</span></div></div>` : ''}
+      <button data-a="${act(() => watchChannel(g, sc))}" style="position:absolute;inset:0;background:transparent" aria-label="Watch ${esc(sc.name)} on ${g.app}"></button>
+    </div>
+    <div class="info">
+      ${topRight}
+      <div class="kicker" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(kicker)}</div>
+      <div class="title">${esc(title)}</div>
+      ${epi || (sp && (sp.genre || sp.rating)) ? `<div class="chips" style="white-space:nowrap;overflow:hidden">${epi ? `<span style="font-size:20px;color:#dfe5ff;margin-right:4px">${esc(epi)}</span>` : ''}${sp && sp.genre ? `<span class="chip">${esc(sp.genre)}</span>` : ''}${sp && sp.rating ? `<span class="chip">${esc(sp.rating)}</span>` : ''}</div>` : ''}
+      <div class="line" style="max-width:700px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(desc)}</div>
+      <div class="actions" style="align-items:center">
+        <button class="btn-main" data-a="${act(() => watchChannel(g, sc))}">${esc(g.watchLabel(sc))}</button>
+        <button class="btn-ghost" data-a="${act(() => toggleFav(g, sc))}">${isFav ? '★ FAVORITED' : '☆ FAVORITE'}</button>
+        ${g.key === 'yttv' ? `<span style="font-size:17px;color:${signed ? '#7be3a1' : 'var(--soft)'}">${signed ? '✓ signed in' : 'Sign in once under Accounts'}</span>` : ''}
+      </div>
+    </div>
+  </div>
+  <div class="catbar">
+    <div id="cats" style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0">
+      ${cats.map((k) => `<button class="cat ${t.cat === k ? 'on' : ''}" style="white-space:nowrap;flex-shrink:0" aria-pressed="${t.cat === k}" data-a="${act(() => { t.cat = k; t.page = 0; const f = guideList(g)[0]; if (f) selectChannel(g, f); })}">${k === 'Favorites' ? '★ Favs' : esc(k)}</button>`).join('')}
+    </div>
+    <div class="nav" style="margin-left:12px">
+      <button class="navb" aria-label="Earlier" data-a="${act(timeBack)}">◀</button>
+      <button class="navb" aria-label="Later" data-a="${act(timeFwd)}">▶</button>
+      <span class="pg mono">${rowLabel(t.page, shown.length, list.length)}</span>
+      <button class="navb" aria-label="Previous channels" data-a="${act(pageUp)}">▲</button>
+      <button class="navb" aria-label="Next channels" data-a="${act(pageDown)}">▼</button>
+    </div>
+  </div>
+  <div class="times"><div class="day mono">${['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date(ws).getDay()]}</div><div class="cols mono">${[0, 1, 2, 3].map((i) => `<div>${hm(ws + i * HALF)}</div>`).join('')}</div></div>
+  <div class="grid" data-wheel>
+    ${now >= ws && now < we ? `<div class="now" style="left:calc(24px + 200px + (100% - 248px) * ${((now - ws) / TVWIN).toFixed(4)})"></div>` : ''}
+    ${rows || '<div class="empty">No channels here yet — press ☆ Favorite on any channel.</div>'}
+  </div>
+  ${footer(g.numbers
+      ? ['<span class="k">WHEEL</span> Scroll', '<span class="k">0-9</span> Channel', '<span class="k">ENTER</span> Watch', '<span class="k">TAB</span> Next']
+      : ['<span class="k">WHEEL</span> Scroll', '<span class="k">SHIFT+WHEEL</span> Time', '<span class="k">ENTER</span> Watch'],
+    g.credit ? g.credit : g.count(D.channels.length))}
+  ${dial}
+  ${t.watching ? `
+  <div class="overlay">
+    <div class="mono" style="font-size:${g.numbers ? 120 : 84}px;color:var(--gold);line-height:1">${g.numbers ? 'CH ' + (sc.number || '') : esc(sc.name.toUpperCase())}</div>
+    <div style="font-size:40px;font-weight:700">${esc(g.numbers ? sc.name : (cur ? cur.title : ''))}</div>
+    <div class="mono" style="font-size:30px;color:var(--soft);letter-spacing:4px">OPENING ${esc(g.app.toUpperCase())}…</div>
+  </div>` : ''}`;
+}
+
+/* ===================== SPORTS GUIDE ===================== */
+function selGame() {
+  const p = S.sp.sel.split('-');
+  const R = SROWS[+p[0]] || SROWS[0];
+  return { R, G: R.games[+p[1]] || R.games[0] };
+}
+function renderSports() {
+  const st = S.sp;
+  const ws = WINS[st.win], we = ws + 240;
+  const fol = (g) => st.follows.indexOf(g.lg + ':' + g.a) >= 0 || st.follows.indexOf(g.lg + ':' + g.h) >= 0;
+  const match = (g) => st.cat === 'All' || (st.cat === 'My Teams' ? fol(g) : g.lg === st.cat);
+
+  const built = [];
+  SROWS.forEach((r, ri) => {
+    const cells = [];
+    r.games.forEach((g, gi) => {
+      if (!match(g)) return;
+      const s = g.t, e = g.t + g.d, vs = Math.max(s, ws), ve = Math.min(e, we);
+      if (ve <= vs) return;
+      const key = ri + '-' + gi, on = key === st.sel;
+      const a = Math.round((vs - ws) / 5) + 1, b = Math.round((ve - ws) / 5) + 1;
+      const tag = g.st === 'live' ? ' · ' + g.sa + '–' + g.sh + ' ' + g.clock : (g.st === 'final' ? ' · FINAL ' + g.sa + '–' + g.sh : '');
+      const cls = ['prog', g.st === 'live' ? 'live' : '', g.st === 'final' ? 'final' : '', fol(g) ? 'fav' : '', on ? 'sel' : ''].join(' ');
+      cells.push(`<button class="${cls}" style="grid-column:${a} / ${b}" data-a="${act(() => { st.sel = key; st.auto = false; })}">${(s < ws ? '◀ ' : '') + (fol(g) ? '★ ' : '') + g.a + ' @ ' + g.h + tag}</button>`);
+    });
+    if (cells.length) built.push(`<div class="row"><div class="chan stack"><span class="net mono">${r.net}</span><span class="sb">${esc(r.sub)}</span></div><div class="slots48">${cells.join('')}</div></div>`);
+  });
+  st.page = Math.min(Math.max(0, st.page), Math.max(0, built.length - PAGE));
+  const rows = built.slice(st.page, st.page + PAGE);
+
+  const { R, G } = selGame();
+  const svc = R.svc;
+  const live = G.st === 'live', fin = G.st === 'final', pre = !live && !fin;
+  const isF = (tm) => st.follows.indexOf(G.lg + ':' + tm) >= 0;
+  const toggle = (tm) => act(() => { const k = G.lg + ':' + tm; st.follows = isF(tm) ? st.follows.filter((x) => x !== k) : st.follows.concat([k]); save('follows', st.follows); });
+
+  let when, tickHead, tick, bar = '';
+  if (live) {
+    when = 'LIVE now · ' + G.clock + ' · ' + G.a + ' ' + G.sa + ', ' + G.h + ' ' + G.sh;
+    tickHead = G.last ? 'LAST SCORE' : 'LIVE';
+    tick = G.last || 'Score updates every few seconds while the game is on.';
+    if (G.ya) bar = statBar(G.a + ' ' + G.ya, 'Total yards', G.yh + ' ' + G.h, Math.round(100 * G.ya / (G.ya + G.yh)));
+  } else if (fin) {
+    when = 'Final · ' + G.an + ' ' + G.sa + ', ' + G.hn + ' ' + G.sh;
+    tickHead = 'FINAL';
+    tick = (G.sa > G.sh ? G.an : G.hn) + ' win, ' + Math.max(G.sa, G.sh) + '–' + Math.min(G.sa, G.sh) + '. Highlights on ' + svc.app + '.';
+  } else {
+    when = 'Starts ' + clock(G.t) + ' ET';
+    tickHead = 'STARTS ' + clock(G.t);
+    tick = 'Press Watch to open ' + svc.app + ' — the game appears on its live page at start time.';
+    if (G.wa) bar = statBar(G.a + ' ' + Math.round(G.wa) + '%', 'Win probability', Math.round(G.wh) + '% ' + G.h, G.wa);
+  }
+
+  return `
+  <div class="top">
+    <div class="preview">
+      <div style="display:flex;align-items:center;gap:8px;height:26px">
+        ${live ? '<span class="tag-live">● LIVE</span>' : fin ? '<span class="tag-final">FINAL</span>' : '<span class="tag-next">UP NEXT</span>'}
+        <span class="mono" style="font-size:22px;color:var(--soft)">${G.lg} · ${esc(svc.net)}</span>
+        <button aria-pressed="${st.auto}" data-a="${act(() => { st.auto = !st.auto; })}" style="margin-left:auto;background:${st.auto ? 'var(--gold)' : 'transparent'};color:${st.auto ? 'var(--navy)' : 'var(--gold)'};border:2px solid var(--gold);font-size:14px;font-weight:700;letter-spacing:1px;padding:0 8px;height:26px">${st.auto ? '◉' : '○'} AUTO-SURF</button>
+      </div>
+      <div class="mono" style="flex:1;display:flex;align-items:center;justify-content:center;gap:22px">
+        <div style="display:flex;flex-direction:column;align-items:center;width:110px"><span style="font-size:44px;line-height:1">${G.a}</span><span style="font-size:66px;color:var(--gold);line-height:.95">${pre ? '–' : G.sa}</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:30px;color:var(--soft)">@</span><span style="font-size:24px;background:var(--navy);padding:0 8px">${live ? G.clock : fin ? 'FINAL' : clock(G.t)}</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;width:110px"><span style="font-size:44px;line-height:1">${G.h}</span><span style="font-size:66px;color:var(--gold);line-height:.95">${pre ? '–' : G.sh}</span></div>
+      </div>
+      ${bar}
+      <div style="background:var(--deep);border-top:2px solid var(--gold);margin:0 -14px -12px;padding:5px 14px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="gold">${tickHead}</span> ${esc(tick)}</div>
+    </div>
+    <div class="info">
+      <div class="hdr"><div class="brand mono" style="font-size:30px">CHANNEL SURFER · SPORTS</div><div class="clock mono" style="font-size:30px" data-clock>${nowLabel()}</div></div>
+      <div class="kicker">${esc(G.note)}</div>
+      <div class="title" style="font-size:40px">${esc(G.an)} at ${esc(G.hn)}</div>
+      <div class="line" style="margin-top:8px">${esc(when)}</div>
+      <div class="line" style="margin-top:4px">On <span class="gold">${esc(svc.net)}</span> · stream on <span class="gold">${esc(svc.app)}</span>${signedIn(svc.app) ? ' <span style="color:#7be3a1">✓ signed in</span>' : ' <span style="color:var(--soft);font-size:18px">· not signed in — see Accounts</span>'}</div>
+      ${svc.alt ? `<div class="sub">${esc(svc.alt)}</div>` : ''}
+      <div class="actions">
+        <button class="btn-main" data-a="${act(() => openStreamer(svc.app, svc.url))}">▶ WATCH ON ${esc(svc.app.toUpperCase())}</button>
+        <button class="btn-ghost" data-a="${toggle(G.a)}">${isF(G.a) ? '★' : '☆'} ${G.a}</button>
+        <button class="btn-ghost" data-a="${toggle(G.h)}">${isF(G.h) ? '★' : '☆'} ${G.h}</button>
+      </div>
+    </div>
+  </div>
+  <div class="catbar">
+    ${SP_CATS.map((k) => `<button class="cat ${st.cat === k ? 'on' : ''}" aria-pressed="${st.cat === k}" data-a="${act(() => { st.cat = k; st.page = 0; })}">${k === 'My Teams' ? '★ My Teams' : k}</button>`).join('')}
+    <div class="nav">
+      <button class="navb" aria-label="Earlier" data-a="${act(timeBack)}">◀</button>
+      <button class="navb" aria-label="Later" data-a="${act(timeFwd)}">▶</button>
+      <span class="pg mono">${rowLabel(st.page, rows.length, built.length)}</span>
+      <button class="navb" aria-label="Previous channels" data-a="${act(pageUp)}">▲</button>
+      <button class="navb" aria-label="Next channels" data-a="${act(pageDown)}">▼</button>
+    </div>
+  </div>
+  <div class="times"><div class="day mono">SUNDAY</div><div class="cols mono">${[0, 60, 120, 180].map((o) => `<div>${clock(ws + o)}</div>`).join('')}</div></div>
+  <div class="grid" data-wheel>
+    ${NOW >= ws && NOW < we ? `<div class="now" style="left:calc(24px + 200px + (100% - 248px) * ${((NOW - ws) / 240).toFixed(4)})"></div>` : ''}
+    ${rows.length ? rows.join('') : '<div class="empty">No games in this window — try ◀ ▶ or another filter.</div>'}
+  </div>
+  ${footer(['<span class="k">◀ ▶</span> Time', '<span class="k">▲ ▼</span> Page', '<span class="k">ENTER</span> Open streamer', '<span class="k">TAB</span> Next screen'], 'Following ' + st.follows.length + ' · ' + LIVE_KEYS.length + ' live')}`;
+}
+function statBar(l, mid, r, pct) {
+  return `<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--pale);letter-spacing:1px;text-transform:uppercase"><span>${esc(l)}</span><span>${esc(mid)}</span><span>${esc(r)}</span></div>
+    <div style="display:flex;height:8px;gap:2px"><div style="width:${pct}%;background:var(--gold)"></div><div style="flex:1;background:#6f86e8"></div></div></div>`;
+}
+
+
+/* ===================== ACCOUNTS ===================== */
+// Sign-ins live in the app's own browser profile (cookies + Edge's password
+// manager). This page never sees or stores a password.
+const STREAMERS = [
+  { app: 'Pluto TV', url: 'https://pluto.tv/', carries: 'Every channel in the TV guide · free, account optional' },
+  { app: 'Peacock', url: 'https://www.peacocktv.com/', carries: 'NBC · Sunday Night Football · Premier League' },
+  { app: 'Paramount+', url: 'https://www.paramountplus.com/', carries: 'CBS · NFL on CBS' },
+  { app: 'Fox One', url: 'https://www.foxsports.com/live', carries: 'FOX · NFL on FOX' },
+  { app: 'HBO Max', url: 'https://www.hbomax.com/', carries: 'TBS · truTV · MLB postseason' },
+  { app: 'NFL+', url: 'https://www.nfl.com/plus/', carries: 'NFL Network · local & primetime games on mobile' },
+  { app: 'ESPN+', url: 'https://www.espn.com/watch/', carries: 'ESPN · NHL out-of-market' },
+  { app: 'YouTube TV', url: 'https://tv.youtube.com/', carries: 'Live TV · NFL Sunday Ticket' }
+];
+S.acct = load('accounts', {});
+function openStreamer(app, url) {
+  const w = window.open(url, 'cs-' + app.replace(/\W/g, ''), 'popup,width=1280,height=760');
+  if (!w) window.open(url, '_blank'); else try { w.focus(); } catch (e) {}
+}
+function signedIn(app) { return S.acct[app] === true; }
+function setSigned(app, v) { if (v) S.acct[app] = true; else delete S.acct[app]; save('accounts', S.acct); }
+
+function renderAccounts() {
+  const rows = STREAMERS.map((x) => {
+    const on = signedIn(x.app), pending = S.acct[x.app] === 'pending';
+    return `<div style="display:flex;align-items:center;gap:16px;height:54px;background:var(--band);padding:0 16px">
+      <div class="mono" style="width:170px;font-size:30px;color:var(--gold)">${esc(x.app.toUpperCase())}</div>
+      <div style="flex:1;min-width:0;font-size:19px;color:var(--pale);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.carries)}</div>
+      ${on ? '<span class="tag-final" style="background:#7be3a1">✓ SIGNED IN</span>' : pending ? '<span class="tag-next">FINISH SIGNING IN</span>' : '<span class="tag-next" style="opacity:.7">NOT SIGNED IN</span>'}
+      ${on
+        ? `<button class="btn-ghost" style="min-height:40px;font-size:18px" data-a="${act(() => openStreamer(x.app, x.url))}">OPEN</button>
+           <button class="btn-ghost" style="min-height:40px;font-size:18px;border-color:var(--soft);color:var(--soft)" data-a="${act(() => setSigned(x.app, false))}">FORGET</button>`
+        : `<button class="btn-main" style="min-height:40px;font-size:19px;padding:0 18px" data-a="${act(() => { S.acct[x.app] = 'pending'; save('accounts', S.acct); openStreamer(x.app, x.url); })}">SIGN IN</button>
+           ${pending ? `<button class="btn-ghost" style="min-height:40px;font-size:18px" data-a="${act(() => setSigned(x.app, true))}">✓ I'M SIGNED IN</button>` : ''}`}
+    </div>`;
+  }).join('');
+  return `
+  <div class="top" style="height:150px;flex-direction:column;gap:4px">
+    <div class="hdr"><div class="brand mono">CHANNEL SURFER · ACCOUNTS</div><div class="clock mono" data-clock>${nowLabel()}</div></div>
+    <div class="line" style="font-size:21px;max-width:1100px;line-height:1.3">Sign in to each streamer once. Use the site's own <span class="gold">Sign In</span> button, and let the browser
+      save your password if you like. After that, every Watch button in the guide opens that service already signed in.</div>
+    <div class="sub">Your sign-ins stay in Channel Surfer's private browser profile on this PC. The app itself never sees or stores your passwords.</div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:4px;padding:8px 24px">${rows}</div>
+  ${footer(['<span class="k">TAB</span> Next screen'], Object.values(S.acct).filter((v) => v === true).length + ' signed in')}`;
+}
+
+/* ===================== SHARED ===================== */
+function footer(keys, extra) {
+  return `<div class="foot">${keys.map((k) => `<span>${k}</span>`).join('')}
+    <div class="right">${extra ? `<span style="font-size:15px;letter-spacing:.5px;margin-right:10px;white-space:nowrap">${extra}</span>` : ''}
+      <button class="tab ${S.screen === 'tv' ? 'on' : ''}" data-a="${act(() => setScreen('tv'))}">PLUTO TV</button>
+      <button class="tab ${S.screen === 'yttv' ? 'on' : ''}" data-a="${act(() => setScreen('yttv'))}">YOUTUBE TV</button>
+      <button class="tab ${S.screen === 'sports' ? 'on' : ''}" data-a="${act(() => setScreen('sports'))}">SPORTS</button>
+      <button class="tab ${S.screen === 'accounts' ? 'on' : ''}" data-a="${act(() => setScreen('accounts'))}">ACCOUNTS</button>
+    </div></div>`;
+}
+function cur() { return isGuide() ? curGuide().st : S.sp; }
+function scrollRows(n) { const c = cur(); if (c) c.page = Math.max(0, c.page + n); }   // clamped at render
+function pageUp() { scrollRows(-PAGE); }
+function pageDown() { scrollRows(PAGE); }
+function timeBack() { if (isGuide()) curGuide().st.off = Math.max(0, curGuide().st.off - 1); else S.sp.win = Math.max(0, S.sp.win - 1); }
+function timeFwd() { if (isGuide()) curGuide().st.off = Math.min(40, curGuide().st.off + 1); else S.sp.win = Math.min(WINS.length - 1, S.sp.win + 1); }
+function setScreen(s) { S.screen = s; save('screen', s); }
+
+const stage = document.getElementById('stage');
+function render() {
+  for (const k in ACT) delete ACT[k];
+  const focusedLabel = document.activeElement && document.activeElement.textContent;
+  stage.innerHTML = isGuide() ? renderGuide(curGuide()) : S.screen === 'accounts' ? renderAccounts() : renderSports();
+  const on = stage.querySelector('#cats .cat.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (focusedLabel) { const b = [...stage.querySelectorAll('button')].find((x) => x.textContent === focusedLabel); if (b) b.focus({ preventScroll: true }); }
+}
+stage.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  const fn = ACT[el.dataset.a];
+  if (fn) { fn(); render(); }
+});
+let dialTimer = null;
+const ready = () => isGuide() && curGuide().data.status === 'ok';
+document.addEventListener('keydown', (e) => {
+  const g = isGuide() ? curGuide() : null;
+  if (e.key === 'Tab') { e.preventDefault(); setScreen({ tv: 'yttv', yttv: 'sports', sports: 'accounts', accounts: 'tv' }[S.screen] || 'tv'); }
+  else if (/^[0-9]$/.test(e.key) && ready() && g.numbers) {
+    g.st.digits = (g.st.digits + e.key).slice(-4);
+    clearTimeout(dialTimer);
+    dialTimer = setTimeout(() => { jumpTo(g, parseInt(g.st.digits, 10)); g.st.digits = ''; render(); }, 1300);
+  }
+  else if (e.key === 'ArrowUp') scrollRows(-1);
+  else if (e.key === 'ArrowDown') scrollRows(1);
+  else if (e.key === 'PageUp') pageUp();
+  else if (e.key === 'PageDown') pageDown();
+  else if (e.key === 'ArrowLeft') timeBack();
+  else if (e.key === 'ArrowRight') timeFwd();
+  else if (e.key === 'Escape' && g && g.st.watching) g.st.watching = null;
+  else if (e.key === 'Enter' && !(document.activeElement && document.activeElement.matches('button,a'))) {
+    if (g) { if (ready()) watchChannel(g, selChannel(g)); }
+    else if (S.screen === 'sports') { const v = selGame().R.svc; openStreamer(v.app, v.url); return; }
+  }
+  else if ((e.key === 'f' || e.key === 'F') && ready()) toggleFav(g, selChannel(g));
+  else return;
+  render();
+});
+
+// Mouse wheel: scroll channels row by row; Shift+wheel or a sideways swipe moves through time.
+let wheelY = 0, wheelX = 0;
+stage.addEventListener('wheel', (e) => {
+  const cats = e.target.closest('#cats');
+  if (cats) { cats.scrollLeft += e.deltaY + e.deltaX; e.preventDefault(); return; }
+  if (!e.target.closest('[data-wheel]')) return;
+  e.preventDefault();
+  const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 400 : 1;   // lines / pages → px
+  const dx = (e.shiftKey ? e.deltaY : e.deltaX) * unit, dy = e.shiftKey ? 0 : e.deltaY * unit;
+  wheelY += dy; wheelX += dx;
+  let changed = false;
+  while (Math.abs(wheelY) >= 50) { scrollRows(Math.sign(wheelY)); wheelY -= Math.sign(wheelY) * 50; changed = true; }
+  while (Math.abs(wheelX) >= 80) { (wheelX > 0 ? timeFwd : timeBack)(); wheelX -= Math.sign(wheelX) * 80; changed = true; }
+  if (changed) render();
+}, { passive: false });
+
+// Auto-surf through live games
+setInterval(() => {
+  if (S.screen !== 'sports' || !S.sp.auto || !LIVE_KEYS.length) return;
+  const i = LIVE_KEYS.indexOf(S.sp.sel);
+  S.sp.sel = LIVE_KEYS[(i + 1) % LIVE_KEYS.length];
+  render();
+}, 4500);
+// Real wall clock
+setInterval(() => document.querySelectorAll('[data-clock]').forEach((n) => { n.textContent = nowLabel(); }), 15000);
+
+// Scale the 1280x720 stage to fit the window
+function fit() {
+  const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+  stage.style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fit);
+fit();
+render();
+for (const k in GUIDES) loadGuide(GUIDES[k], false);
+setInterval(() => { for (const k in GUIDES) loadGuide(GUIDES[k], false); }, 10 * 60 * 1000); // live refresh
+setInterval(() => { if (ready() && !curGuide().st.digits) render(); }, 60 * 1000);             // move the now-line
+
+// Tell the launcher we're still open
+if (location.protocol.startsWith('http')) {
+  const ping = () => fetch('/ping', { method: 'POST' }).catch(() => {});
+  ping(); setInterval(ping, 2000);
+}
+</script>
+</body>
+</html>
